@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Physics Visualizer - Created by Tanaya Dave</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* Custom styles for the canvas background */
+        canvas {
+            display: block; /* Remove extra space below canvas */
+            background-color: #1a202c; /* Dark space background */
+            border-radius: 0.5rem; /* Rounded corners */
+        }
+        /* Style for range input thumb for better visibility */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #667eea; /* Lighter Indigo */
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            transition: background 0.15s ease-in-out;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+             background: #5a67d8; /* Darker Indigo on hover */
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #667eea; /* Lighter Indigo */
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+             transition: background 0.15s ease-in-out;
+        }
+         input[type="range"]::-moz-range-thumb:hover {
+             background: #5a67d8; /* Darker Indigo on hover */
+        }
+         /* Style for range input track */
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #4a5568; /* Dark track */
+            border-radius: 4px;
+        }
+        input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #4a5568; /* Dark track */
+            border-radius: 4px;
+        }
+    </style>
+     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans transition-colors duration-300">
+    <div id="root">
+        </div>
+
+    <script type="text/babel">
+        // Access React and its hooks directly from the global 'React' object.
+        const { useState, useEffect, useRef } = React;
+
+        // Main App component for the Interactive Physics Visualizer
+        const App = () => {
+            // Dark mode is default for the theme
+            const isDarkMode = true;
+
+            // Ref for the canvas element
+            const canvasRef = useRef(null);
+
+            // State for projectile parameters (initial velocity and launch angle)
+            const [initialVelocity, setInitialVelocity] = useState(80);
+            const [launchAngle, setLaunchAngle] = useState(55);
+
+            // State to control animation start (managed by button click)
+            const [isLaunched, setIsLaunched] = useState(false);
+
+            // Ref for animation time - managed directly in the animation loop
+            const animationTimeRef = useRef(0);
+            const animationFrameId = useRef(null);
+
+             // Ref to store trajectory points for animation
+            const trajectoryPointsRef = useRef([]);
+            const maxTrajectoryTimeRef = useRef(0);
+
+             // Physics constants (simplified for visualization)
+            const gravity = 0.05; // Adjust for visual scale
+            const timeStep = 0.5; // Smaller time steps for smoother curve
+             // Starting point (bottom left corner of the canvas)
+            const startX = 50; // Slightly more space from the left
+            const startYOffset = 50; // Offset from the bottom for ground level
+
+
+            // Function to calculate the trajectory points
+            const calculateTrajectory = (canvas, velocity, angleDegrees) => {
+                 if (!canvas) return { points: [], maxTime: 0 }; // Return empty if canvas is not ready
+
+                 const angleRadians = angleDegrees * Math.PI / 180;
+                 const points = [];
+                 let currentMaxTime = 0;
+                 const canvasHeight = canvas.height;
+                 const canvasWidth = canvas.width;
+
+
+                 for (let t = 0; ; t += timeStep) {
+                     const x = startX + velocity * Math.cos(angleRadians) * t;
+                     const y = (canvasHeight - startYOffset) - (velocity * Math.sin(angleRadians) * t - 0.5 * gravity * t * t);
+
+                     // Stop calculation if the projectile goes below the ground or off the right edge
+                     if (y > canvasHeight - startYOffset + 5 || x > canvasWidth + 5) { // Add a small buffer
+                         currentMaxTime = t;
+                         break;
+                     }
+
+                     points.push({x, y, t});
+
+                     // Prevent infinite loops for edge cases (e.g., straight up launch)
+                     if (t > 1000) { // Cap the calculation time
+                         currentMaxTime = t;
+                         break;
+                     }
+                 }
+                 return { points, maxTime: currentMaxTime };
+            };
+
+
+            // Function to draw the projectile trajectory and the rocket
+            const drawTrajectory = (ctx, canvas, velocity, angleDegrees, currentTime, isLaunched, trajectoryPoints) => {
+                // Clear the canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw stars in the background (simple dots)
+                ctx.fillStyle = '#cbd5e1'; // Light gray for stars
+                for (let i = 0; i < 100; i++) { // Draw 100 stars
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * (canvas.height - startYOffset); // Avoid ground area
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Set drawing styles for the trajectory
+                ctx.strokeStyle = '#a5b4fc'; // Lighter indigo for stroke
+                ctx.lineWidth = 3; // Thicker line for trajectory
+
+                // --- Draw the Trajectory Path ---
+                ctx.beginPath();
+                // Start path at the initial position (adjusted for canvas coordinates)
+                ctx.moveTo(startX, canvas.height - startYOffset);
+
+                // Draw the trajectory line from the stored points
+                trajectoryPoints.forEach(point => ctx.lineTo(point.x, point.y));
+
+                ctx.stroke(); // Draw the trajectory line
+
+
+                // --- Draw the Rocket Ship ---
+                let rocketX, rocketY, rocketAngle = 0;
+
+                if (isLaunched && currentTime <= maxTrajectoryTimeRef.current && trajectoryPoints.length > 0) {
+                     // Find the point on the trajectory closest to the current animation time
+                    // Find the index of the point whose time is just greater than or equal to currentTime
+                    let currentPointIndex = trajectoryPoints.findIndex(point => point.t >= currentTime);
+
+                    // Handle cases where currentTime is beyond the last point or before the first
+                    if (currentPointIndex === -1) {
+                        currentPointIndex = trajectoryPoints.length - 1; // Use the last point if time exceeds max
+                    } else if (currentPointIndex > 0 && trajectoryPoints[currentPointIndex].t > currentTime && currentTime > trajectoryPoints[currentPointIndex - 1].t) {
+                         // Interpolate between points for smoother animation between time steps
+                         const p1 = trajectoryPoints[currentPointIndex - 1];
+                         const p2 = trajectoryPoints[currentPointIndex];
+                         const tRatio = (currentTime - p1.t) / (p2.t - p1.t);
+                         rocketX = p1.x + (p2.x - p1.x) * tRatio;
+                         rocketY = p1.y + (p2.y - p1.y) * tRatio;
+                         // Calculate angle based on the segment
+                         rocketAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+                    } else {
+                         // Use the point directly if currentTime matches a point's time or is before the second point
+                         const currentPoint = trajectoryPoints[currentPointIndex];
+                         rocketX = currentPoint.x;
+                         rocketY = currentPoint.y;
+
+                         // Calculate rocket angle (tangent to the trajectory)
+                         if (currentPointIndex < trajectoryPoints.length - 1) {
+                             const nextPoint = trajectoryPoints[currentPointIndex + 1];
+                             rocketAngle = Math.atan2(nextPoint.y - currentPoint.y, nextPoint.x - currentPoint.x);
+                         } else if (trajectoryPoints.length > 1) {
+                             // Use the angle of the last segment if at the end
+                             const lastPoint = trajectoryPoints[trajectoryPoints.length - 1];
+                             const secondLastPoint = trajectoryPoints[trajectoryPoints.length - 2];
+                             rocketAngle = Math.atan2(lastPoint.y - secondLastPoint.y, lastPoint.x - secondLastPoint.x);
+                         } else {
+                             // If only one point, use the initial launch angle
+                             const angleRadians = angleDegrees * Math.PI / 180;
+                             rocketAngle = -angleRadians; // Negative because canvas Y is inverted
+                         }
+                    }
+
+
+                } else {
+                    // If not launched, or animation is finished, place rocket at the start
+                     rocketX = startX;
+                     rocketY = canvas.height - startYOffset;
+                     const angleRadians = angleDegrees * Math.PI / 180;
+                     rocketAngle = -angleRadians; // Initial angle
+                }
+
+
+                // Save current canvas state
+                ctx.save();
+
+                // Translate and rotate for drawing the rocket
+                ctx.translate(rocketX, rocketY);
+                ctx.rotate(rocketAngle);
+
+                // Draw a simple rocket shape (example)
+                const rocketSize = 15;
+                ctx.fillStyle = '#fbd38d'; // Light orange/gold for rocket body
+                ctx.beginPath();
+                ctx.moveTo(0, -rocketSize * 1.5); // Nose cone top
+                ctx.lineTo(rocketSize * 0.5, rocketSize * 0.5); // Body right
+                ctx.lineTo(-rocketSize * 0.5, rocketSize * 0.5); // Body left
+                ctx.closePath(); // Nose cone base
+                ctx.fill();
+
+                 ctx.fillStyle = '#e53e3e'; // Red for rocket fins/engine
+                 ctx.beginPath();
+                 ctx.moveTo(rocketSize * 0.5, rocketSize * 0.5);
+                 ctx.lineTo(rocketSize * 0.8, rocketSize * 1.2);
+                 ctx.lineTo(rocketSize * 0.3, rocketSize * 1.0);
+                 ctx.closePath();
+                 ctx.fill();
+
+                 ctx.beginPath();
+                 ctx.moveTo(-rocketSize * 0.5, rocketSize * 0.5);
+                 ctx.lineTo(-rocketSize * 0.8, rocketSize * 1.2);
+                 ctx.lineTo(-rocketSize * 0.3, rocketSize * 1.0);
+                 ctx.closePath();
+                 ctx.fill();
+
+                 ctx.beginPath();
+                 ctx.arc(0, rocketSize * 1.0, rocketSize * 0.4, 0, Math.PI, true); // Engine exhaust (simple arc)
+                 ctx.fill();
+
+
+                // Restore canvas state
+                ctx.restore();
+
+
+                // Add labels for parameters
+                ctx.fillStyle = '#a0aec0'; // Gray color for text
+                ctx.font = '14px Inter';
+                ctx.textAlign = 'left';
+                 // Position labels relative to the canvas, not the rocket
+                ctx.fillText(`Initial Velocity: ${velocity} m/s`, 20, canvas.height - 30);
+                ctx.fillText(`Launch Angle: ${angleDegrees}°`, 20, canvas.height - 15);
+
+                 // Add "Ready to Launch" or "Launched!" text
+                 if (!isLaunched && animationTimeRef.current === 0) { // Show "Ready" only at the start
+                     ctx.fillStyle = '#6366f1'; // Indigo color
+                     ctx.font = '24px Inter';
+                     ctx.textAlign = 'center';
+                     ctx.fillText('Ready to Launch!', canvas.width / 2, canvas.height / 2);
+                 } else if (!isLaunched && animationTimeRef.current > 0 && animationTimeRef.current >= maxTrajectoryTimeRef.current) { // Show "Complete" after animation finishes and time is at or past max
+                      ctx.fillStyle = '#34d399'; // Green color
+                      ctx.font = '24px Inter';
+                      ctx.textAlign = 'center';
+                      ctx.fillText('Trajectory Complete!', canvas.width / 2, canvas.height / 2);
+                 }
+            };
+
+            // Animation loop
+            const animate = () => {
+                 if (canvasRef.current) {
+                     const canvas = canvasRef.current;
+                     const ctx = canvas.getContext('2d');
+
+                     // Check if animation is finished
+                     if (animationTimeRef.current <= maxTrajectoryTimeRef.current) {
+                         // Redraw the trajectory and rocket at the current animation time
+                         drawTrajectory(ctx, canvas, initialVelocity, launchAngle, animationTimeRef.current, true, trajectoryPointsRef.current); // Pass trajectory points
+
+                         // Update animation time directly
+                         animationTimeRef.current += timeStep; // Use timeStep for consistent speed
+
+                         // Request next frame
+                         animationFrameId.current = requestAnimationFrame(animate);
+                     } else {
+                         // Animation finished
+                         cancelAnimationFrame(animationFrameId.current);
+                         animationFrameId.current = null;
+                         setIsLaunched(false); // Animation is complete
+
+                          // Redraw one last time to show rocket at the end position and "Complete" text
+                         drawTrajectory(ctx, canvas, initialVelocity, launchAngle, maxTrajectoryTimeRef.current, false, trajectoryPointsRef.current); // Draw at max time for final position
+                     }
+                 }
+            };
+
+            // Effect to calculate trajectory and draw initial state when parameters or canvas change
+            useEffect(() => {
+                 if (canvasRef.current) {
+                     const canvas = canvasRef.current;
+                     const ctx = canvas.getContext('2d');
+
+                     const resizeCanvas = () => {
+                         canvas.width = canvas.parentElement.clientWidth;
+                         canvas.height = canvas.parentElement.clientHeight;
+
+                         // Recalculate trajectory on resize or parameter change
+                         const { points, maxTime } = calculateTrajectory(canvas, initialVelocity, launchAngle);
+                         trajectoryPointsRef.current = points;
+                         maxTrajectoryTimeRef.current = maxTime;
+
+                         // Always draw the initial state with rocket at start when parameters or size change
+                         setIsLaunched(false); // Ensure not in launched state
+                         animationTimeRef.current = 0; // Reset animation time ref
+                         if (animationFrameId.current) {
+                             cancelAnimationFrame(animationFrameId.current); // Stop any ongoing animation
+                             animationFrameId.current = null;
+                         }
+                         drawTrajectory(ctx, canvas, initialVelocity, launchAngle, 0, false, trajectoryPointsRef.current);
+                     };
+
+                     resizeCanvas(); // Initial draw and resize
+                     window.addEventListener('resize', resizeCanvas);
+
+                     return () => {
+                         window.removeEventListener('resize', resizeCanvas);
+                         // Ensure animation is stopped on component unmount
+                         if (animationFrameId.current) {
+                             cancelAnimationFrame(animationFrameId.current);
+                         }
+                     };
+                 }
+            }, [canvasRef, initialVelocity, launchAngle]); // Redraw on canvas ref or parameters change
+
+
+            // Handler for the Launch button click
+            const handleLaunch = () => {
+                // Only launch if not already launched and trajectory is calculated
+                if (!isLaunched && trajectoryPointsRef.current.length > 0) {
+                    setIsLaunched(true); // Set launched state to true
+                    animationTimeRef.current = 0; // Reset animation time ref to start from the beginning
+
+                    // Start the animation loop directly
+                    if (animationFrameId.current) {
+                        cancelAnimationFrame(animationFrameId.current); // Cancel any lingering frame
+                    }
+                    animationFrameId.current = requestAnimationFrame(animate);
+                }
+            };
+
+
+            return (
+                <div className={`min-h-screen p-8 bg-gray-900 text-gray-100 font-sans transition-colors duration-300`}>
+                    <div className="container mx-auto">
+                        {/* Title and Creator Info */}
+                        <h1 className="text-4xl font-bold text-center text-indigo-400 mb-4">
+                            Interactive Physics Visualizer
+                        </h1>
+                        <p className="text-center text-lg mb-8 text-gray-400">
+                            Created by <span className="font-semibold text-indigo-300">Tanaya Dave</span>
+                        </p>
+
+                        {/* Main Content Area */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            {/* Controls Sidebar */}
+                            <aside className={`md:col-span-1 p-6 rounded-lg shadow-lg bg-gray-800 shadow-gray-700`}>
+                                <h2 className={`text-xl font-semibold mb-4 text-indigo-400`}>Controls</h2>
+
+                                {/* Initial Velocity Control */}
+                                <div className="mb-6">
+                                    <label htmlFor="initialVelocity" className={`block text-sm font-medium mb-2 text-gray-300`}>
+                                        Initial Velocity: <span className="font-semibold">{initialVelocity}</span> m/s
+                                    </label>
+                                    <input
+                                        type="range"
+                                        id="initialVelocity"
+                                        min="10"
+                                        max="200" // Increased max velocity again
+                                        value={initialVelocity}
+                                        onChange={(e) => {
+                                             setInitialVelocity(Number(e.target.value));
+                                             // Reset state when parameters change
+                                             setIsLaunched(false);
+                                             animationTimeRef.current = 0; // Reset animation time ref
+                                             if (animationFrameId.current) {
+                                                cancelAnimationFrame(animationFrameId.current);
+                                                animationFrameId.current = null;
+                                             }
+                                        }}
+                                        className={`w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-700`}
+                                    />
+                                </div>
+
+                                {/* Launch Angle Control */}
+                                <div className="mb-6">
+                                    <label htmlFor="launchAngle" className={`block text-sm font-medium mb-2 text-gray-300`}>
+                                        Launch Angle: <span className="font-semibold">{launchAngle}</span>°
+                                    </label>
+                                    <input
+                                        type="range"
+                                        id="launchAngle"
+                                        min="0"
+                                        max="90"
+                                        value={launchAngle}
+                                        onChange={(e) => {
+                                             setLaunchAngle(Number(e.target.value));
+                                             // Reset state when parameters change
+                                             setIsLaunched(false);
+                                             animationTimeRef.current = 0; // Reset animation time ref
+                                              if (animationFrameId.current) {
+                                                cancelAnimationFrame(animationFrameId.current);
+                                                animationFrameId.current = null;
+                                             }
+                                        }}
+                                        className={`w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-700`}
+                                    />
+                                </div>
+
+                                {/* Launch Button */}
+                                <button
+                                    onClick={handleLaunch}
+                                    disabled={isLaunched || trajectoryPointsRef.current.length === 0} // Disable button while launched or if trajectory not calculated
+                                    className={`w-full py-3 px-4 rounded-md font-bold text-lg transition-colors ${isLaunched || trajectoryPointsRef.current.length === 0 ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                                >
+                                    {isLaunched ? 'Launching...' : 'Launch Rocket!'}
+                                </button>
+
+                                {/* Note about animation */}
+                                <p className="text-sm text-gray-500 mt-4 italic">
+                                    Adjust controls, then click "Launch Rocket!"
+                                </p>
+
+                            </aside>
+
+                            {/* Visualization Area */}
+                            <section className={`md:col-span-2 p-6 rounded-lg shadow-lg flex items-center justify-center bg-gray-800 shadow-gray-700`}>
+                                {/* Canvas for 2D Visualization */}
+                                <div className="w-full h-96 flex items-center justify-center">
+                                    <canvas ref={canvasRef} className="dark-mode"></canvas>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the App component into the root div
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
