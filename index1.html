@@ -1,0 +1,1875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AP Physics 1 Simulations - Created by Tanaya Dave</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748; /* Dark track */
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568; /* Darker thumb */
+            border-radius: 5px;
+        }
+         ::-webkit-scrollbar-thumb:hover {
+            background: #6366f1; /* Indigo hover */
+        }
+         /* Style for range input thumb for better visibility */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #667eea; /* Lighter Indigo */
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+            transition: background 0.15s ease-in-out;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+             background: #5a67d8; /* Darker Indigo on hover */
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #667eea; /* Lighter Indigo */
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+             transition: background 0.15s ease-in-out;
+        }
+         input[type="range"]::-moz-range-thumb:hover {
+             background: #5a67d8; /* Darker Indigo on hover */
+        }
+         /* Style for range input track */
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #4a5568; /* Dark track */
+            border-radius: 4px;
+        }
+        input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #4a5568; /* Dark track */
+            border-radius: 4px;
+        }
+         /* Style for the canvas */
+        .simulation-canvas {
+            display: block; /* Remove extra space below canvas */
+            background-color: #1a202c; /* Dark background */
+            border-radius: 0.5rem; /* Rounded corners */
+            width: 100%; /* Make canvas responsive */
+            height: 350px; /* Fixed height for simulation area */
+        }
+    </style>
+     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans transition-colors duration-300">
+    <div id="root">
+        </div>
+
+    <script type="text/babel">
+        // Access React and its hooks directly from the global 'React' object.
+        const { useState, useEffect, useRef } = React;
+
+        // --- Simulation Components ---
+
+        // Kinematics Simulation (Position vs Time Graph)
+        const KinematicsSim = ({ isDarkMode }) => {
+             const canvasRef = useRef(null);
+             const [velocity, setVelocity] = useState(10);
+             const [acceleration, setAcceleration] = useState(0);
+
+             // Animation state and refs
+             const [isLaunched, setIsLaunched] = useState(false);
+             const animationTimeRef = useRef(0);
+             const animationFrameId = useRef(null);
+             const maxAnimationTime = 10; // Simulate for 10 seconds
+
+             const drawGraph = (ctx, canvas, currentVelocity, currentAcceleration, currentTime, isLaunched) => {
+                 canvas.width = canvas.parentElement.clientWidth;
+                 canvas.height = 300; // Fixed height for graph
+
+                 // Clear canvas
+                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                 // Draw axes
+                 ctx.strokeStyle = isDarkMode ? '#4a5568' : '#cbd5e1';
+                 ctx.lineWidth = 1;
+                 ctx.beginPath();
+                 ctx.moveTo(50, 10); // Y-axis
+                 ctx.lineTo(50, canvas.height - 50);
+                 ctx.moveTo(50, canvas.height - 50); // X-axis
+                 ctx.lineTo(canvas.width - 10, canvas.height - 50);
+                 ctx.stroke();
+
+                 // Draw labels
+                 ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                 ctx.font = '12px Inter';
+                 ctx.textAlign = 'center';
+                 ctx.fillText('Time (s)', canvas.width / 2, canvas.height - 20);
+                 ctx.textAlign = 'left';
+                 ctx.fillText('Position (m)', 10, canvas.height / 2);
+
+
+                 // Draw position vs time graph (x = v*t + 0.5*a*t^2)
+                 ctx.strokeStyle = isDarkMode ? '#667eea' : '#5a67d8'; // Indigo
+                 ctx.lineWidth = 2;
+                 ctx.beginPath();
+                 ctx.moveTo(50, canvas.height - 50); // Start at origin
+
+                 for (let t = 0; t <= maxAnimationTime; t += 0.1) { // Draw full trajectory
+                     const position = currentVelocity * t + 0.5 * currentAcceleration * t * t;
+                     const x = 50 + t * 20; // Scale time for x-axis
+                     const y = (canvas.height - 50) - position * 5; // Scale position for y-axis (inverted)
+
+                     // Stop drawing if out of bounds
+                     if (x > canvas.width - 10 || y < 10) break;
+
+                     ctx.lineTo(x, y);
+                 }
+                 ctx.stroke();
+
+                 // Draw the animated point if launched
+                 if (isLaunched) {
+                     const currentPosition = currentVelocity * currentTime + 0.5 * currentAcceleration * currentTime * currentTime;
+                     const pointX = 50 + currentTime * 20; // Scale time for x-axis
+                     const pointY = (canvas.height - 50) - currentPosition * 5; // Scale position for y-axis (inverted)
+
+                     ctx.fillStyle = isDarkMode ? '#34d399' : '#10b981'; // Green dot
+                     ctx.beginPath();
+                     ctx.arc(pointX, pointY, 5, 0, Math.PI * 2);
+                     ctx.fill();
+                 }
+
+
+                  // Add "Ready/Simulating/Complete" text
+                 ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                 ctx.font = '18px Inter';
+                 ctx.textAlign = 'center';
+                 if (!isLaunched && animationTimeRef.current === 0) {
+                     ctx.fillText('Ready to Simulate', canvas.width / 2, 30);
+                 } else if (isLaunched) {
+                     ctx.fillText(`Simulating Time: ${animationTimeRef.current.toFixed(1)}s`, canvas.width / 2, 30);
+                 } else {
+                     ctx.fillText('Simulation Complete', canvas.width / 2, 30);
+                 }
+             };
+
+             // Animation loop
+             const animate = () => {
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+                  const ctx = canvas.getContext('2d');
+
+                 if (animationTimeRef.current <= maxAnimationTime) {
+                     drawGraph(ctx, canvas, velocity, acceleration, animationTimeRef.current, true);
+                     animationTimeRef.current += 0.1; // Animation speed
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 } else {
+                     setIsLaunched(false);
+                     animationTimeRef.current = maxAnimationTime; // Ensure it ends at max time
+                      drawGraph(ctx, canvas, velocity, acceleration, animationTimeRef.current, false); // Draw final state
+                 }
+             };
+
+             // Effect to handle initial draw and resize
+             useEffect(() => {
+                 const canvas = canvasRef.current;
+                 if (!canvas) return;
+                 const ctx = canvas.getContext('2d');
+
+                 const resizeCanvas = () => {
+                     // Reset animation state on resize
+                     setIsLaunched(false);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                         animationFrameId.current = null;
+                     }
+                     drawGraph(ctx, canvas, velocity, acceleration, animationTimeRef.current, false);
+                 };
+
+                 resizeCanvas();
+                 window.addEventListener('resize', resizeCanvas);
+
+                 return () => {
+                     window.removeEventListener('resize', resizeCanvas);
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                 };
+             }, [canvasRef, velocity, acceleration, isDarkMode]); // Redraw on param change or resize
+
+             // Handler for the Launch button
+             const handleLaunch = () => {
+                 if (!isLaunched) {
+                     setIsLaunched(true);
+                     animationTimeRef.current = 0; // Start from the beginning
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 }
+             };
+
+
+            return (
+                <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'}`}>
+                    <h4 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>Kinematics: Position vs Time Graph</h4>
+                    <p className="mb-4 text-gray-400">Explore how initial velocity and acceleration affect an object's position over time.</p>
+                    <div className="mb-6">
+                        <label htmlFor="velocity" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Initial Velocity: <span className="font-semibold">{velocity}</span> m/s
+                        </label>
+                        <input
+                            type="range"
+                            id="velocity"
+                            min="-20"
+                            max="20"
+                            step="1"
+                            value={velocity}
+                            onChange={(e) => {
+                                setVelocity(Number(e.target.value));
+                                setIsLaunched(false); // Reset on parameter change
+                                animationTimeRef.current = 0;
+                                 if (animationFrameId.current) {
+                                     cancelAnimationFrame(animationFrameId.current);
+                                     animationFrameId.current = null;
+                                 }
+                            }}
+                             className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                        />
+                    </div>
+                     <div className="mb-6">
+                        <label htmlFor="acceleration" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Acceleration: <span className="font-semibold">{acceleration}</span> m/s²
+                        </label>
+                        <input
+                            type="range"
+                            id="acceleration"
+                            min="-5"
+                            max="5"
+                            step="0.1"
+                            value={acceleration}
+                            onChange={(e) => {
+                                setAcceleration(Number(e.target.value));
+                                setIsLaunched(false); // Reset on parameter change
+                                animationTimeRef.current = 0;
+                                 if (animationFrameId.current) {
+                                     cancelAnimationFrame(animationFrameId.current);
+                                     animationFrameId.current = null;
+                                 }
+                            }}
+                             className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                        />
+                    </div>
+
+                    {/* Launch Button */}
+                    <button
+                        onClick={handleLaunch}
+                        disabled={isLaunched}
+                        className={`w-full py-2 px-4 rounded-md font-semibold transition-colors ${isLaunched ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                    >
+                        {isLaunched ? 'Simulating...' : 'Run Simulation'}
+                    </button>
+
+                    <div className="w-full h-auto flex items-center justify-center border rounded-md border-gray-700 mt-6">
+                         <canvas ref={canvasRef} className="simulation-canvas"></canvas>
+                    </div>
+                </div>
+            );
+        };
+
+        // Dynamics Simulation (Forces and Free Body Diagrams)
+        const DynamicsSim = ({ isDarkMode }) => {
+             const canvasRef = useRef(null);
+             const [appliedForce, setAppliedForce] = useState(50);
+             const [frictionForce, setFrictionForce] = useState(10);
+             const [mass, setMass] = useState(10);
+
+             // Animation state and refs
+             const [isLaunched, setIsLaunched] = useState(false);
+             const animationTimeRef = useRef(0);
+             const animationFrameId = useRef(null);
+             const maxAnimationTime = 5; // Simulate for 5 seconds
+
+             const drawSimulation = (ctx, canvas, currentAppliedForce, currentFrictionForce, currentMass, currentTime, isLaunched) => {
+                 canvas.width = canvas.parentElement.clientWidth;
+                 canvas.height = 350;
+
+                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                 // --- Drawing Logic ---
+                 const boxSize = 50;
+                 const groundY = canvas.height - 50;
+                 const initialBoxX = canvas.width / 4;
+
+                 // Calculate current position based on acceleration and time
+                 const netForce = currentAppliedForce - currentFrictionForce;
+                 const acceleration = currentMass !== 0 ? netForce / currentMass : 0;
+                 const currentBoxX = initialBoxX + 0.5 * acceleration * currentTime * currentTime; // Simple motion
+
+                 // Draw ground
+                 ctx.strokeStyle = isDarkMode ? '#a0aec0' : '#718096';
+                 ctx.lineWidth = 2;
+                 ctx.beginPath();
+                 ctx.moveTo(0, groundY);
+                 ctx.lineTo(canvas.width, groundY);
+                 ctx.stroke();
+
+                 // Draw box
+                 ctx.fillStyle = isDarkMode ? '#fbd38d' : '#f6ad55';
+                 ctx.fillRect(currentBoxX, groundY - boxSize, boxSize, boxSize);
+
+
+                 // Draw Applied Force vector (at current box position)
+                 const arrowLength = currentAppliedForce * 2;
+                 const arrowStartX = currentBoxX + boxSize / 2;
+                 const arrowStartY = groundY - boxSize / 2;
+                 const arrowEndX = arrowStartX + arrowLength;
+
+                 ctx.strokeStyle = isDarkMode ? '#48bb78' : '#38a169';
+                 ctx.lineWidth = 3;
+                 ctx.beginPath();
+                 ctx.moveTo(arrowStartX, arrowStartY);
+                 ctx.lineTo(arrowEndX, arrowStartY);
+                 ctx.stroke();
+                 ctx.beginPath();
+                 ctx.moveTo(arrowEndX, arrowStartY);
+                 ctx.lineTo(arrowEndX - 10, arrowStartY - 5);
+                 ctx.moveTo(arrowEndX, arrowStartY);
+                 ctx.lineTo(arrowEndX - 10, arrowStartY + 5);
+                 ctx.stroke();
+
+                  // Draw Friction Force vector (opposite direction, at current box position)
+                 const frictionArrowLength = currentFrictionForce * 2;
+                 const frictionArrowEndX = arrowStartX - frictionArrowLength;
+
+                 ctx.strokeStyle = isDarkMode ? '#f56565' : '#e53e3e';
+                 ctx.lineWidth = 3;
+                 ctx.beginPath();
+                 ctx.moveTo(arrowStartX, arrowStartY);
+                 ctx.lineTo(frictionArrowEndX, arrowStartY); // Corrected: Use arrowStartY
+                 ctx.stroke();
+                 ctx.beginPath();
+                 ctx.moveTo(frictionArrowEndX, arrowStartY); // Use arrowStartY for friction
+                 ctx.lineTo(frictionArrowEndX + 10, arrowStartY - 5);
+                 ctx.moveTo(frictionArrowEndX, arrowStartY);
+                 ctx.lineTo(frictionArrowEndX + 10, arrowStartY + 5);
+                 ctx.stroke();
+
+
+                  // Display Net Force and Acceleration
+                  ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                  ctx.font = '16px Inter';
+                  ctx.textAlign = 'left';
+                  ctx.fillText(`Net Force: ${netForce.toFixed(2)} N`, 20, 30);
+                  ctx.fillText(`Acceleration: ${acceleration.toFixed(2)} m/s²`, 20, 50);
+
+
+                  // Add "Ready/Simulating/Complete" text
+                 ctx.font = '18px Inter';
+                 ctx.textAlign = 'center';
+                 if (!isLaunched && animationTimeRef.current === 0) {
+                     ctx.fillText('Ready to Simulate', canvas.width / 2, 30);
+                 } else if (isLaunched) {
+                     ctx.fillText(`Simulating Time: ${animationTimeRef.current.toFixed(1)}s`, canvas.width / 2, 30);
+                 } else {
+                     ctx.fillText('Simulation Complete', canvas.width / 2, 30);
+                 }
+             };
+
+             // Animation loop
+             const animate = () => {
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+                  const ctx = canvas.getContext('2d');
+
+                 if (animationTimeRef.current <= maxAnimationTime) {
+                     drawSimulation(ctx, canvas, appliedForce, frictionForce, mass, animationTimeRef.current, true);
+                     animationTimeRef.current += 0.1; // Animation speed
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 } else {
+                     setIsLaunched(false);
+                     animationTimeRef.current = maxAnimationTime;
+                      drawSimulation(ctx, canvas, appliedForce, frictionForce, mass, animationTimeRef.current, false);
+                 }
+             };
+
+             // Effect to handle initial draw and resize
+             useEffect(() => {
+                 const canvas = canvasRef.current;
+                 if (!canvas) return;
+                 const ctx = canvas.getContext('2d');
+
+                 const resizeCanvas = () => {
+                     setIsLaunched(false);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                         animationFrameId.current = null;
+                     }
+                     drawSimulation(ctx, canvas, appliedForce, frictionForce, mass, animationTimeRef.current, false);
+                 };
+
+                 resizeCanvas();
+                 window.addEventListener('resize', resizeCanvas);
+
+                 return () => {
+                     window.removeEventListener('resize', resizeCanvas);
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                 };
+             }, [canvasRef, appliedForce, frictionForce, mass, isDarkMode]); // Redraw on param change or resize
+
+             // Handler for the Launch button
+             const handleLaunch = () => {
+                 if (!isLaunched) {
+                     setIsLaunched(true);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 }
+             };
+
+
+            return (
+                 <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'}`}>
+                    <h4 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>Dynamics: Forces and Free Body Diagrams</h4>
+                    <p className="mb-4 text-gray-400">Visualize forces acting on an object and understand Newton's Laws.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {/* Applied Force Control */}
+                        <div>
+                            <label htmlFor="appliedForce" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Applied Force: <span className="font-semibold">{appliedForce}</span> N
+                            </label>
+                            <input
+                                type="range"
+                                id="appliedForce"
+                                min="0"
+                                max="100"
+                                step="1"
+                                value={appliedForce}
+                                onChange={(e) => {
+                                     setAppliedForce(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Friction Force Control */}
+                        <div>
+                            <label htmlFor="frictionForce" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Friction Force: <span className="font-semibold">{frictionForce}</span> N
+                            </label>
+                            <input
+                                type="range"
+                                id="frictionForce"
+                                min="0"
+                                max="50"
+                                step="1"
+                                value={frictionForce}
+                                onChange={(e) => {
+                                     setFrictionForce(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Mass Control */}
+                        <div>
+                            <label htmlFor="mass" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Mass: <span className="font-semibold">{mass}</span> kg
+                            </label>
+                            <input
+                                type="range"
+                                id="mass"
+                                min="1"
+                                max="50"
+                                step="1"
+                                value={mass}
+                                onChange={(e) => {
+                                     setMass(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Launch Button */}
+                    <button
+                        onClick={handleLaunch}
+                        disabled={isLaunched}
+                        className={`w-full py-2 px-4 rounded-md font-semibold transition-colors ${isLaunched ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                    >
+                        {isLaunched ? 'Simulating...' : 'Run Simulation'}
+                    </button>
+
+
+                    <div className="w-full h-auto flex items-center justify-center border rounded-md border-gray-700 mt-6">
+                         <canvas ref={canvasRef} className="simulation-canvas"></canvas>
+                    </div>
+                 </div>
+            );
+        };
+
+         // Circular Motion & Gravitation Simulation
+         const CircularMotionSim = ({ isDarkMode }) => {
+             const canvasRef = useRef(null);
+             const [velocity, setVelocity] = useState(5);
+             const [radius, setRadius] = useState(50);
+             const [centralMass, setCentralMass] = useState(1000); // For gravitation example
+
+             // Animation state and refs
+             const [isLaunched, setIsLaunched] = useState(false);
+             const animationTimeRef = useRef(0);
+             const animationFrameId = useRef(null);
+             const maxAnimationTime = 10; // Simulate for 10 seconds (for one orbit example)
+
+
+              const drawSimulation = (ctx, canvas, currentVelocity, currentRadius, currentCentralMass, currentTime, isLaunched) => {
+                 canvas.width = canvas.parentElement.clientWidth;
+                 canvas.height = 350;
+
+                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                 // --- Drawing Logic ---
+                 const centerX = canvas.width / 2;
+                 const centerY = canvas.height / 2;
+
+                 // Draw central mass (Sun/Planet)
+                 ctx.fillStyle = isDarkMode ? '#f6e05e' : '#ecc94d';
+                 ctx.beginPath();
+                 ctx.arc(centerX, centerY, 15, 0, Math.PI * 2);
+                 ctx.fill();
+
+                 // Draw orbital path
+                 ctx.strokeStyle = isDarkMode ? '#a0aec0' : '#718096';
+                 ctx.lineWidth = 2;
+                 ctx.beginPath();
+                 ctx.arc(centerX, centerY, currentRadius, 0, Math.PI * 2);
+                 ctx.stroke();
+
+                  // Draw orbiting object (Planet/Satellite)
+                 const objectSize = 8;
+                 let objectX, objectY;
+
+                 if (isLaunched) {
+                     // Calculate position based on circular motion over time
+                     const angle = (currentTime / maxAnimationTime) * (Math.PI * 2); // Angle based on animation time
+                     objectX = centerX + currentRadius * Math.cos(angle);
+                     objectY = centerY + currentRadius * Math.sin(angle);
+                 } else {
+                     // Initial position (e.g., on the right side)
+                     objectX = centerX + currentRadius;
+                     objectY = centerY;
+                 }
+
+
+                 ctx.fillStyle = isDarkMode ? '#63b3ed' : '#4299e1';
+                 ctx.beginPath();
+                 ctx.arc(objectX, objectY, objectSize, 0, Math.PI * 2);
+                 ctx.fill();
+
+
+                 // Display relevant values
+                 const centripetalAcceleration = currentVelocity * currentVelocity / currentRadius;
+                 const gravitationalForce = (6.674e-11 * currentCentralMass * 1) / (currentRadius * currentRadius); // Assuming orbiting mass is 1
+
+                 ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                  ctx.font = '16px Inter';
+                  ctx.textAlign = 'left';
+                  ctx.fillText(`Velocity: ${currentVelocity} m/s`, 20, 30);
+                  ctx.fillText(`Radius: ${currentRadius} m`, 20, 50);
+                  ctx.fillText(`Central Mass: ${currentCentralMass} kg (example)`, 20, 70);
+                   ctx.fillText(`Centripetal Accel: ${centripetalAcceleration.toFixed(2)} m/s²`, 20, 100);
+                   ctx.fillText(`Gravitational Force (example): ${gravitationalForce.toExponential(2)} N`, 20, 120);
+
+
+                  // Add "Ready/Simulating/Complete" text
+                 ctx.font = '18px Inter';
+                 ctx.textAlign = 'center';
+                 if (!isLaunched && animationTimeRef.current === 0) {
+                     ctx.fillText('Ready to Simulate', canvas.width / 2, 30);
+                 } else if (isLaunched) {
+                     ctx.fillText(`Simulating Time: ${animationTimeRef.current.toFixed(1)}s`, canvas.width / 2, 30);
+                 } else {
+                     ctx.fillText('Simulation Complete', canvas.width / 2, 30);
+                 }
+             };
+
+             // Animation loop
+             const animate = () => {
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+                  const ctx = canvas.getContext('2d');
+
+                 if (animationTimeRef.current <= maxAnimationTime) {
+                     drawSimulation(ctx, canvas, velocity, radius, centralMass, animationTimeRef.current, true);
+                     animationTimeRef.current += 0.1;
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 } else {
+                     setIsLaunched(false);
+                     animationTimeRef.current = maxAnimationTime;
+                      drawSimulation(ctx, canvas, velocity, radius, centralMass, animationTimeRef.current, false);
+                 }
+             };
+
+             // Effect to handle initial draw and resize
+             useEffect(() => {
+                 const canvas = canvasRef.current;
+                 if (!canvas) return;
+                 const ctx = canvas.getContext('2d');
+
+                 const resizeCanvas = () => {
+                     setIsLaunched(false);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                         animationFrameId.current = null;
+                     }
+                     drawSimulation(ctx, canvas, velocity, radius, centralMass, animationTimeRef.current, false);
+                 };
+
+                 resizeCanvas();
+                 window.addEventListener('resize', resizeCanvas);
+
+                 return () => {
+                     window.removeEventListener('resize', resizeCanvas);
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                 };
+             }, [canvasRef, velocity, radius, centralMass, isDarkMode]); // Redraw on param change or resize
+
+             // Handler for the Launch button
+             const handleLaunch = () => {
+                 if (!isLaunched) {
+                     setIsLaunched(true);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 }
+             };
+
+
+            return (
+                 <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'}`}>
+                    <h4 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>Circular Motion & Gravitation</h4>
+                    <p className="mb-4 text-gray-400">Explore uniform circular motion, centripetal force, and gravitational interactions.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {/* Velocity Control */}
+                        <div>
+                            <label htmlFor="cmVelocity" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Velocity: <span className="font-semibold">{velocity}</span> m/s
+                            </label>
+                            <input
+                                type="range"
+                                id="cmVelocity"
+                                min="1"
+                                max="20"
+                                step="1"
+                                value={velocity}
+                                onChange={(e) => {
+                                     setVelocity(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Radius Control */}
+                        <div>
+                            <label htmlFor="cmRadius" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Radius: <span className="font-semibold">{radius}</span> m
+                            </label>
+                            <input
+                                type="range"
+                                id="cmRadius"
+                                min="10"
+                                max="200"
+                                step="5"
+                                value={radius}
+                                onChange={(e) => {
+                                     setRadius(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Central Mass Control (for gravitation) */}
+                        <div>
+                            <label htmlFor="centralMass" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Central Mass: <span className="font-semibold">{centralMass}</span> kg (example)
+                            </label>
+                            <input
+                                type="range"
+                                id="centralMass"
+                                min="100"
+                                max="5000"
+                                step="100"
+                                value={centralMass}
+                                onChange={(e) => {
+                                     setCentralMass(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Launch Button */}
+                    <button
+                        onClick={handleLaunch}
+                        disabled={isLaunched}
+                        className={`w-full py-2 px-4 rounded-md font-semibold transition-colors ${isLaunched ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                    >
+                        {isLaunched ? 'Simulating...' : 'Run Simulation'}
+                    </button>
+
+                    <div className="w-full h-auto flex items-center justify-center border rounded-md border-gray-700 mt-6">
+                         <canvas ref={canvasRef} className="simulation-canvas"></canvas>
+                    </div>
+                 </div>
+            );
+        };
+
+         // Energy Simulation (Work, Energy, Power)
+         const EnergySim = ({ isDarkMode }) => {
+             const canvasRef = useRef(null);
+             const [mass, setMass] = useState(10);
+             const [initialHeight, setInitialHeight] = useState(15); // Start higher for drop
+             const [initialVelocity, setInitialVelocity] = useState(0); // Start from rest
+
+             // Animation state and refs
+             const [isLaunched, setIsLaunched] = useState(false);
+             const animationTimeRef = useRef(0);
+             const animationFrameId = useRef(null);
+             const maxAnimationTime = 5; // Simulate for 5 seconds
+
+              const drawSimulation = (ctx, canvas, currentMass, currentInitialHeight, currentInitialVelocity, currentTime, isLaunched) => {
+                 canvas.width = canvas.parentElement.clientWidth;
+                 canvas.height = 350;
+
+                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                 // --- Drawing Logic ---
+                 const groundY = canvas.height - 50;
+                 const blockX = canvas.width / 2 - 25;
+                 const blockSize = 50;
+                 const gravity = 9.8 / 50; // Scale gravity for drawing
+
+                 let currentHeight, currentVelocity;
+
+                 if (isLaunched) {
+                     // Calculate current height and velocity based on freefall
+                     currentHeight = currentInitialHeight - (currentInitialVelocity * currentTime + 0.5 * gravity * currentTime * currentTime);
+                     currentVelocity = currentInitialVelocity + gravity * currentTime;
+
+                     // Stop animation if block hits the ground
+                     if (currentHeight <= 0) {
+                         currentHeight = 0;
+                         currentVelocity = currentInitialVelocity + gravity * maxAnimationTime; // Final velocity example
+                         setIsLaunched(false); // Stop animation
+                         animationTimeRef.current = maxAnimationTime; // Ensure time is max
+                     }
+
+                 } else {
+                     currentHeight = currentInitialHeight;
+                     currentVelocity = currentInitialVelocity;
+                 }
+
+                 const blockY = groundY - (currentHeight * 10) - blockSize; // Scale height for drawing (inverted)
+
+
+                 // Draw ground
+                 ctx.strokeStyle = isDarkMode ? '#a0aec0' : '#718096';
+                 ctx.lineWidth = 2;
+                 ctx.beginPath();
+                 ctx.moveTo(0, groundY);
+                 ctx.lineTo(canvas.width, groundY);
+                 ctx.stroke();
+
+                 // Draw block
+                 ctx.fillStyle = isDarkMode ? '#a78bfa' : '#8b5cf6';
+                 ctx.fillRect(blockX, blockY, blockSize, blockSize);
+
+
+                 // Display energy values
+                 const gravitationalPotentialEnergy = currentMass * 9.8 * currentHeight;
+                 const kineticEnergy = 0.5 * currentMass * currentVelocity * currentVelocity;
+                 const totalMechanicalEnergy = gravitationalPotentialEnergy + kineticEnergy;
+
+
+                 ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                  ctx.font = '16px Inter';
+                  ctx.textAlign = 'left';
+                  ctx.fillText(`Mass: ${currentMass} kg`, 20, 30);
+                  ctx.fillText(`Initial Height: ${currentInitialHeight} m`, 20, 50);
+                   ctx.fillText(`Initial Velocity: ${currentInitialVelocity} m/s`, 20, 70);
+                   ctx.fillText(`Current Height: ${currentHeight.toFixed(2)} m`, 20, 90);
+                   ctx.fillText(`Current Velocity: ${currentVelocity.toFixed(2)} m/s`, 20, 110);
+                   ctx.fillText(`Gravitational Potential Energy: ${gravitationalPotentialEnergy.toFixed(2)} J`, 20, 140);
+                   ctx.fillText(`Kinetic Energy: ${kineticEnergy.toFixed(2)} J`, 20, 160);
+                   ctx.fillText(`Total Mechanical Energy: ${totalMechanicalEnergy.toFixed(2)} J (ideally constant)`, 20, 180);
+
+
+                  // Add "Ready/Simulating/Complete" text
+                 ctx.font = '18px Inter';
+                 ctx.textAlign = 'center';
+                 if (!isLaunched && animationTimeRef.current === 0) {
+                     ctx.fillText('Ready to Simulate', canvas.width / 2, 30);
+                 } else if (isLaunched) {
+                     ctx.fillText(`Simulating Time: ${animationTimeRef.current.toFixed(1)}s`, canvas.width / 2, 30);
+                 } else {
+                     ctx.fillText('Simulation Complete', canvas.width / 2, 30);
+                 }
+             };
+
+             // Animation loop
+             const animate = () => {
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+                  const ctx = canvas.getContext('2d');
+
+                 if (animationTimeRef.current <= maxAnimationTime) {
+                     drawSimulation(ctx, canvas, mass, initialHeight, initialVelocity, animationTimeRef.current, true);
+                     animationTimeRef.current += 0.1;
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 } else {
+                     setIsLaunched(false);
+                     animationTimeRef.current = maxAnimationTime;
+                      drawSimulation(ctx, canvas, mass, initialHeight, initialVelocity, animationTimeRef.current, false);
+                 }
+             };
+
+             // Effect to handle initial draw and resize
+             useEffect(() => {
+                 const canvas = canvasRef.current;
+                 if (!canvas) return;
+                 const ctx = canvas.getContext('2d');
+
+                 const resizeCanvas = () => {
+                     setIsLaunched(false);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                         animationFrameId.current = null;
+                     }
+                     drawSimulation(ctx, canvas, mass, initialHeight, initialVelocity, animationTimeRef.current, false);
+                 };
+
+                 resizeCanvas();
+                 window.addEventListener('resize', resizeCanvas);
+
+                 return () => {
+                     window.removeEventListener('resize', resizeCanvas);
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                 };
+             }, [canvasRef, mass, initialHeight, initialVelocity, isDarkMode]); // Redraw on param change or resize
+
+             // Handler for the Launch button
+             const handleLaunch = () => {
+                 if (!isLaunched) {
+                     setIsLaunched(true);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 }
+             };
+
+
+            return (
+                 <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'}`}>
+                    <h4 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>Energy: Work, Energy, and Power</h4>
+                    <p className="mb-4 text-gray-400">Visualize the conservation of energy and how work changes energy.</p>
+
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {/* Mass Control */}
+                        <div>
+                            <label htmlFor="energyMass" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Mass: <span className="font-semibold">{mass}</span> kg
+                            </label>
+                            <input
+                                type="range"
+                                id="energyMass"
+                                min="1"
+                                max="50"
+                                step="1"
+                                value={mass}
+                                onChange={(e) => {
+                                     setMass(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Initial Height Control */}
+                        <div>
+                            <label htmlFor="initialHeight" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Initial Height: <span className="font-semibold">{initialHeight}</span> m
+                            </label>
+                            <input
+                                type="range"
+                                id="initialHeight"
+                                min="0"
+                                max="20"
+                                step="0.5"
+                                value={initialHeight}
+                                onChange={(e) => {
+                                     setInitialHeight(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Initial Velocity Control */}
+                        <div>
+                            <label htmlFor="energyInitialVelocity" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Initial Velocity: <span className="font-semibold">{initialVelocity}</span> m/s
+                            </label>
+                            <input
+                                type="range"
+                                id="energyInitialVelocity"
+                                min="0"
+                                max="10"
+                                step="0.5"
+                                value={initialVelocity}
+                                onChange={(e) => {
+                                     setInitialVelocity(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Launch Button */}
+                    <button
+                        onClick={handleLaunch}
+                        disabled={isLaunched}
+                        className={`w-full py-2 px-4 rounded-md font-semibold transition-colors ${isLaunched ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                    >
+                        {isLaunched ? 'Simulating...' : 'Run Simulation'}
+                    </button>
+
+                    <div className="w-full h-auto flex items-center justify-center border rounded-md border-gray-700 mt-6">
+                         <canvas ref={canvasRef} className="simulation-canvas"></canvas>
+                    </div>
+                 </div>
+            );
+        };
+
+         // Momentum Simulation (Collisions)
+         const MomentumSim = ({ isDarkMode }) => {
+             const canvasRef = useRef(null);
+             const [mass1, setMass1] = useState(10);
+             const [velocity1, setVelocity1] = useState(5);
+             const [mass2, setMass2] = useState(10);
+             const [velocity2, setVelocity2] = useState(-3);
+             const [isElastic, setIsElastic] = useState(true); // Elastic or Inelastic collision
+
+             // Animation state and refs
+             const [isLaunched, setIsLaunched] = useState(false);
+             const animationTimeRef = useRef(0);
+             const animationFrameId = useRef(null);
+             const maxAnimationTime = 5; // Simulate for 5 seconds
+             const collisionTime = 2; // Example time of collision
+
+              const drawSimulation = (ctx, canvas, currentMass1, currentVelocity1, currentMass2, currentVelocity2, currentIsElastic, currentTime, isLaunched) => {
+                 canvas.width = canvas.parentElement.clientWidth;
+                 canvas.height = 350;
+
+                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                 // --- Drawing Logic ---
+                 const blockHeight = 40;
+                 const blockY = canvas.height / 2 - blockHeight / 2;
+                 const initialBlock1X = canvas.width / 4;
+                 const initialBlock2X = canvas.width * 3 / 4;
+
+                 let currentBlock1X, currentBlock2X;
+                 let finalVelocity1 = currentVelocity1;
+                 let finalVelocity2 = currentVelocity2;
+
+                 // Calculate final velocities after collision (simplified)
+                 if (currentIsElastic) {
+                     // Elastic collision formulas
+                     finalVelocity1 = ((currentMass1 - currentMass2) / (currentMass1 + currentMass2)) * currentVelocity1 + ((2 * currentMass2) / (currentMass1 + currentMass2)) * currentVelocity2;
+                     finalVelocity2 = ((2 * currentMass1) / (currentMass1 + currentMass2)) * currentVelocity1 + ((currentMass2 - currentMass1) / (currentMass1 + currentMass2)) * currentVelocity2;
+                 } else {
+                     // Inelastic collision formula (stick together)
+                     finalVelocity1 = finalVelocity2 = (currentMass1 * currentVelocity1 + currentMass2 * currentVelocity2) / (currentMass1 + currentMass2);
+                 }
+
+
+                 if (isLaunched && currentTime <= maxAnimationTime) {
+                     // Animate motion before and after collision
+                     if (currentTime <= collisionTime) {
+                         // Before collision
+                         currentBlock1X = initialBlock1X + currentVelocity1 * currentTime * 10; // Scale speed for drawing
+                         currentBlock2X = initialBlock2X + currentVelocity2 * currentTime * 10; // Scale speed for drawing
+                     } else {
+                         // After collision
+                         currentBlock1X = initialBlock1X + currentVelocity1 * collisionTime * 10 + finalVelocity1 * (currentTime - collisionTime) * 10;
+                         currentBlock2X = initialBlock2X + currentVelocity2 * collisionTime * 10 + finalVelocity2 * (currentTime - collisionTime) * 10;
+                     }
+                 } else {
+                     // Initial position
+                     currentBlock1X = initialBlock1X;
+                     currentBlock2X = initialBlock2X;
+                 }
+
+
+                 // Draw Block 1
+                 const block1Width = currentMass1 * 4;
+                 ctx.fillStyle = isDarkMode ? '#f6ad55' : '#ed8936';
+                 ctx.fillRect(currentBlock1X - block1Width / 2, blockY, block1Width, blockHeight);
+                 ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                 ctx.fillText(`Mass: ${currentMass1}kg`, currentBlock1X - 20, blockY - 10);
+                  ctx.fillText(`Velocity: ${isLaunched && currentTime > collisionTime ? finalVelocity1.toFixed(1) : currentVelocity1.toFixed(1)}m/s`, currentBlock1X - 30, blockY - 25); // Show initial or final velocity
+
+
+                 // Draw Block 2
+                 const block2Width = currentMass2 * 4;
+                 ctx.fillStyle = isDarkMode ? '#63b3ed' : '#4299e1';
+                 ctx.fillRect(currentBlock2X - block2Width / 2, blockY, block2Width, blockHeight);
+                  ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                  ctx.fillText(`Mass: ${currentMass2}kg`, currentBlock2X - 20, blockY - 10);
+                  ctx.fillText(`Velocity: ${isLaunched && currentTime > collisionTime ? finalVelocity2.toFixed(1) : currentVelocity2.toFixed(1)}m/s`, currentBlock2X - 30, blockY - 25); // Show initial or final velocity
+
+
+                 // Display total momentum
+                 const totalMomentumInitial = currentMass1 * currentVelocity1 + currentMass2 * currentVelocity2;
+                 const totalMomentumFinal = currentMass1 * finalVelocity1 + currentMass2 * finalVelocity2; // Should be equal to initial
+
+                 ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                  ctx.font = '16px Inter';
+                  ctx.textAlign = 'center';
+                  ctx.fillText(`Total Momentum (Initial): ${totalMomentumInitial.toFixed(2)} kg m/s`, canvas.width / 2, 30);
+                   ctx.fillText(`Total Momentum (Final): ${totalMomentumFinal.toFixed(2)} kg m/s`, canvas.width / 2, 50);
+
+
+                  // Add "Ready/Simulating/Complete" text
+                 ctx.font = '18px Inter';
+                 ctx.textAlign = 'center';
+                 if (!isLaunched && animationTimeRef.current === 0) {
+                     ctx.fillText('Ready to Simulate', canvas.width / 2, 80);
+                 } else if (isLaunched) {
+                     ctx.fillText(`Simulating Time: ${animationTimeRef.current.toFixed(1)}s`, canvas.width / 2, 80);
+                 } else {
+                     ctx.fillText('Simulation Complete', canvas.width / 2, 80);
+                 }
+             };
+
+             // Animation loop
+             const animate = () => {
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+                  const ctx = canvas.getContext('2d');
+
+                 if (animationTimeRef.current <= maxAnimationTime) {
+                     drawSimulation(ctx, canvas, mass1, velocity1, mass2, velocity2, isElastic, animationTimeRef.current, true);
+                     animationTimeRef.current += 0.1;
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 } else {
+                     setIsLaunched(false);
+                     animationTimeRef.current = maxAnimationTime;
+                      drawSimulation(ctx, canvas, mass1, velocity1, mass2, velocity2, isElastic, animationTimeRef.current, false);
+                 }
+             };
+
+             // Effect to handle initial draw and resize
+             useEffect(() => {
+                 const canvas = canvasRef.current;
+                 if (!canvas) return;
+                 const ctx = canvas.getContext('2d');
+
+                 const resizeCanvas = () => {
+                     setIsLaunched(false);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                         animationFrameId.current = null;
+                     }
+                     drawSimulation(ctx, canvas, mass1, velocity1, mass2, velocity2, isElastic, animationTimeRef.current, false);
+                 };
+
+                 resizeCanvas();
+                 window.addEventListener('resize', resizeCanvas);
+
+                 return () => {
+                     window.removeEventListener('resize', resizeCanvas);
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                 };
+             }, [canvasRef, mass1, velocity1, mass2, velocity2, isElastic, isDarkMode]); // Redraw on param change or resize
+
+             // Handler for the Launch button
+             const handleLaunch = () => {
+                 if (!isLaunched) {
+                     setIsLaunched(true);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 }
+             };
+
+
+            return (
+                 <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'}`}>
+                    <h4 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>Momentum and Collisions</h4>
+                    <p className="mb-4 text-gray-400">Investigate how momentum is conserved during collisions.</p>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {/* Mass 1 Control */}
+                        <div>
+                            <label htmlFor="mass1" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Mass 1: <span className="font-semibold">{mass1}</span> kg
+                            </label>
+                            <input
+                                type="range"
+                                id="mass1"
+                                min="1"
+                                max="20"
+                                step="1"
+                                value={mass1}
+                                onChange={(e) => {
+                                     setMass1(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Velocity 1 Control */}
+                        <div>
+                            <label htmlFor="velocity1" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Velocity 1: <span className="font-semibold">{velocity1}</span> m/s
+                            </label>
+                            <input
+                                type="range"
+                                id="velocity1"
+                                min="-10"
+                                max="10"
+                                step="0.5"
+                                value={velocity1}
+                                onChange={(e) => {
+                                     setVelocity1(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Mass 2 Control */}
+                        <div>
+                            <label htmlFor="mass2" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Mass 2: <span className="font-semibold">{mass2}</span> kg
+                            </label>
+                            <input
+                                type="range"
+                                id="mass2"
+                                min="1"
+                                max="20"
+                                step="1"
+                                value={mass2}
+                                onChange={(e) => {
+                                     setMass2(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Velocity 2 Control */}
+                        <div>
+                            <label htmlFor="velocity2" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Velocity 2: <span className="font-semibold">{velocity2}</span> m/s
+                            </label>
+                            <input
+                                type="range"
+                                id="velocity2"
+                                min="-10"
+                                max="10"
+                                step="0.5"
+                                value={velocity2}
+                                onChange={(e) => {
+                                     setVelocity2(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                        {/* Collision Type Control */}
+                        <div className="md:col-span-2">
+                            <label htmlFor="isElastic" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Collision Type: <span className="font-semibold">{isElastic ? 'Elastic' : 'Inelastic'}</span>
+                            </label>
+                            <input
+                                type="range"
+                                id="isElastic"
+                                min="0"
+                                max="1"
+                                step="1"
+                                value={isElastic ? 1 : 0}
+                                onChange={(e) => {
+                                     setIsElastic(Number(e.target.value) === 1);
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Launch Button */}
+                    <button
+                        onClick={handleLaunch}
+                        disabled={isLaunched}
+                        className={`w-full py-2 px-4 rounded-md font-semibold transition-colors ${isLaunched ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                    >
+                        {isLaunched ? 'Simulating...' : 'Run Simulation'}
+                    </button>
+
+                    <div className="w-full h-auto flex items-center justify-center border rounded-md border-gray-700 mt-6">
+                         <canvas ref={canvasRef} className="simulation-canvas"></canvas>
+                    </div>
+                 </div>
+            );
+        };
+
+         // Simple Harmonic Motion Simulation
+         const SHMSim = ({ isDarkMode }) => {
+             const canvasRef = useRef(null);
+             const [mass, setMass] = useState(1);
+             const [springConstant, setSpringConstant] = useState(10);
+             const [amplitude, setAmplitude] = useState(5);
+
+             // Animation state and refs
+             const [isLaunched, setIsLaunched] = useState(false);
+             const animationTimeRef = useRef(0);
+             const animationFrameId = useRef(null);
+             const maxAnimationTime = 10; // Simulate for 10 seconds
+
+
+              const drawSimulation = (ctx, canvas, currentMass, currentSpringConstant, currentAmplitude, currentTime, isLaunched) => {
+                 canvas.width = canvas.parentElement.clientWidth;
+                 canvas.height = 350;
+
+                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                 // --- Drawing Logic ---
+                 const equilibriumX = canvas.width / 2;
+                 const springY = canvas.height / 2;
+                 const massSize = 30;
+
+                 let currentDisplacement = 0; // Displacement from equilibrium
+
+                 if (isLaunched) {
+                     // Calculate displacement based on SHM equation (assuming starts at max amplitude)
+                     const angularFrequency = Math.sqrt(currentSpringConstant / currentMass);
+                     currentDisplacement = currentAmplitude * Math.cos(angularFrequency * currentTime);
+                 } else {
+                     // Initial position (at max amplitude)
+                     currentDisplacement = currentAmplitude;
+                 }
+
+                 const massX = equilibriumX + currentDisplacement * 10; // Scale displacement for drawing
+
+
+                 // Draw equilibrium line
+                 ctx.strokeStyle = isDarkMode ? '#4a5568' : '#cbd5e1';
+                 ctx.lineWidth = 1;
+                 ctx.beginPath();
+                 ctx.moveTo(equilibriumX, springY - 50);
+                 ctx.lineTo(equilibriumX, springY + 50);
+                 ctx.stroke();
+                  ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                 ctx.fillText('Equilibrium', equilibriumX + 10, springY - 30);
+
+
+                 // Draw a simple spring (placeholder - visual representation, not accurate spring physics)
+                 ctx.strokeStyle = isDarkMode ? '#a5b4fc' : '#6366f1';
+                 ctx.lineWidth = 2;
+                 ctx.beginPath();
+                 ctx.moveTo(equilibriumX - 100, springY); // Anchor point (example)
+                 ctx.lineTo(massX - massSize / 2, springY); // To the mass
+                 ctx.stroke();
+
+
+                 // Draw the mass
+                 ctx.fillStyle = isDarkMode ? '#fbd38d' : '#f6ad55';
+                 ctx.fillRect(massX - massSize / 2, springY - massSize / 2, massSize, massSize);
+                  ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                 ctx.fillText(`Mass: ${currentMass}kg`, massX - 20, springY + massSize / 2 + 15);
+
+
+                 // Display relevant values
+                 const period = 2 * Math.PI * Math.sqrt(currentMass / currentSpringConstant);
+                 const frequency = 1 / period;
+                 const angularFrequency = 2 * Math.PI * frequency;
+                 const currentVelocity = -currentAmplitude * angularFrequency * Math.sin(angularFrequency * currentTime); // Velocity in SHM
+
+
+                 ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                  ctx.font = '16px Inter';
+                  ctx.textAlign = 'left';
+                  ctx.fillText(`Mass: ${currentMass} kg`, 20, 30);
+                  ctx.fillText(`Spring Constant (k): ${currentSpringConstant} N/m`, 20, 50);
+                   ctx.fillText(`Amplitude: ${currentAmplitude} m`, 20, 70);
+                    ctx.fillText(`Period: ${period.toFixed(2)} s`, 20, 100);
+                    ctx.fillText(`Frequency: ${frequency.toFixed(2)} Hz`, 20, 120);
+                     ctx.fillText(`Current Displacement: ${currentDisplacement.toFixed(2)} m`, 20, 150);
+                      ctx.fillText(`Current Velocity: ${currentVelocity.toFixed(2)} m/s`, 20, 170);
+
+
+                  // Add "Ready/Simulating/Complete" text
+                 ctx.font = '18px Inter';
+                 ctx.textAlign = 'center';
+                 if (!isLaunched && animationTimeRef.current === 0) {
+                     ctx.fillText('Ready to Simulate', canvas.width / 2, 30);
+                 } else if (isLaunched) {
+                     ctx.fillText(`Simulating Time: ${animationTimeRef.current.toFixed(1)}s`, canvas.width / 2, 30);
+                 } else {
+                     ctx.fillText('Simulation Complete', canvas.width / 2, 30);
+                 }
+             };
+
+             // Animation loop
+             const animate = () => {
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+                  const ctx = canvas.getContext('2d');
+
+                 if (animationTimeRef.current <= maxAnimationTime) {
+                     drawSimulation(ctx, canvas, mass, springConstant, amplitude, animationTimeRef.current, true);
+                     animationTimeRef.current += 0.1;
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 } else {
+                     setIsLaunched(false);
+                     animationTimeRef.current = maxAnimationTime;
+                      drawSimulation(ctx, canvas, mass, springConstant, amplitude, animationTimeRef.current, false);
+                 }
+             };
+
+             // Effect to handle initial draw and resize
+             useEffect(() => {
+                 const canvas = canvasRef.current;
+                 if (!canvas) return;
+                 const ctx = canvas.getContext('2d');
+
+                 const resizeCanvas = () => {
+                     setIsLaunched(false);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                         animationFrameId.current = null;
+                     }
+                     drawSimulation(ctx, canvas, mass, springConstant, amplitude, animationTimeRef.current, false);
+                 };
+
+                 resizeCanvas();
+                 window.addEventListener('resize', resizeCanvas);
+
+                 return () => {
+                     window.removeEventListener('resize', resizeCanvas);
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                 };
+             }, [canvasRef, mass, springConstant, amplitude, isDarkMode]); // Redraw on param change or resize
+
+             // Handler for the Launch button
+             const handleLaunch = () => {
+                 if (!isLaunched) {
+                     setIsLaunched(true);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 }
+             };
+
+
+            return (
+                 <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'}`}>
+                    <h4 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>Simple Harmonic Motion</h4>
+                    <p className="mb-4 text-gray-400">Analyze the oscillating motion of mass-spring systems and pendulums.</p>
+
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {/* Mass Control */}
+                        <div>
+                            <label htmlFor="shmMass" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Mass: <span className="font-semibold">{mass}</span> kg
+                            </label>
+                            <input
+                                type="range"
+                                id="shmMass"
+                                min="0.1"
+                                max="10"
+                                step="0.1"
+                                value={mass}
+                                onChange={(e) => {
+                                     setMass(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Spring Constant Control */}
+                        <div>
+                            <label htmlFor="springConstant" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Spring Constant (k): <span className="font-semibold">{springConstant}</span> N/m
+                            </label>
+                            <input
+                                type="range"
+                                id="springConstant"
+                                min="1"
+                                max="100"
+                                step="1"
+                                value={springConstant}
+                                onChange={(e) => {
+                                     setSpringConstant(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Amplitude Control */}
+                        <div>
+                            <label htmlFor="amplitude" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Amplitude: <span className="font-semibold">{amplitude}</span> m
+                            </label>
+                            <input
+                                type="range"
+                                id="amplitude"
+                                min="0"
+                                max="10"
+                                step="0.5"
+                                value={amplitude}
+                                onChange={(e) => {
+                                     setAmplitude(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Launch Button */}
+                    <button
+                        onClick={handleLaunch}
+                        disabled={isLaunched}
+                        className={`w-full py-2 px-4 rounded-md font-semibold transition-colors ${isLaunched ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                    >
+                        {isLaunched ? 'Simulating...' : 'Run Simulation'}
+                    </button>
+
+                    <div className="w-full h-auto flex items-center justify-center border rounded-md border-gray-700 mt-6">
+                         <canvas ref={canvasRef} className="simulation-canvas"></canvas>
+                    </div>
+                 </div>
+            );
+        };
+
+         // Torque & Rotational Motion Simulation
+         const TorqueSim = ({ isDarkMode }) => {
+             const canvasRef = useRef(null);
+             const [force, setForce] = useState(20);
+             const [distance, setDistance] = useState(5); // Distance from pivot
+             const [angle, setAngle] = useState(90); // Angle in degrees
+             const [inertia, setInertia] = useState(10); // Moment of inertia
+
+             // Animation state and refs
+             const [isLaunched, setIsLaunched] = useState(false);
+             const animationTimeRef = useRef(0);
+             const animationFrameId = useRef(null);
+             const maxAnimationTime = 5; // Simulate for 5 seconds
+
+
+              const drawSimulation = (ctx, canvas, currentForce, currentDistance, currentAngle, currentInertia, currentTime, isLaunched) => {
+                 canvas.width = canvas.parentElement.clientWidth;
+                 canvas.height = 350;
+
+                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                 // --- Drawing Logic ---
+                 const pivotX = canvas.width / 4;
+                 const pivotY = canvas.height / 2;
+                 const armLength = 150; // Fixed drawing length for the arm
+
+                 let currentAngleRad = 0; // Current rotational angle
+
+                 // Calculate angular acceleration and current angle (simplified)
+                 const angleRadians = currentAngle * Math.PI / 180;
+                 const torque = currentForce * currentDistance * Math.sin(angleRadians);
+                 const angularAcceleration = currentInertia !== 0 ? torque / currentInertia : 0;
+
+                 if (isLaunched) {
+                     // Calculate current rotational angle based on angular acceleration
+                     currentAngleRad = 0.5 * angularAcceleration * currentTime * currentTime; // Assuming starts from rest at angle 0
+                 }
+
+
+                 // Draw pivot
+                 ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                 ctx.beginPath();
+                 ctx.arc(pivotX, pivotY, 8, 0, Math.PI * 2);
+                 ctx.fill();
+                 ctx.fillText('Pivot', pivotX - 15, pivotY - 15);
+
+
+                 // Draw lever arm (rotated)
+                 ctx.save();
+                 ctx.translate(pivotX, pivotY); // Move origin to pivot
+                 ctx.rotate(currentAngleRad); // Rotate by current angle
+                 ctx.strokeStyle = isDarkMode ? '#f6ad55' : '#ed8936';
+                 ctx.lineWidth = 4;
+                 ctx.beginPath();
+                 ctx.moveTo(0, 0);
+                 ctx.lineTo(armLength, 0);
+                 ctx.stroke();
+                 ctx.restore(); // Restore canvas state
+
+
+                 // Draw point where force is applied (scaled by distance, on the arm)
+                 const forcePointDistance = (currentDistance / 10) * armLength; // Scale distance
+                 const forcePointX = pivotX + forcePointDistance * Math.cos(currentAngleRad);
+                 const forcePointY = pivotY + forcePointDistance * Math.sin(currentAngleRad);
+
+                 ctx.fillStyle = isDarkMode ? '#63b3ed' : '#4299e1';
+                 ctx.beginPath();
+                 ctx.arc(forcePointX, forcePointY, 5, 0, Math.PI * 2);
+                 ctx.fill();
+
+
+                 // Draw force vector (at the force point, with the specified angle relative to the arm)
+                 const forceArrowLength = currentForce * 1;
+                 const forceVectorAngle = currentAngleRad + angleRadians - Math.PI / 2; // Angle relative to horizontal
+
+                 const arrowStartX = forcePointX;
+                 const arrowStartY = forcePointY;
+                 const arrowEndX = arrowStartX + forceArrowLength * Math.cos(forceVectorAngle);
+                 const arrowEndY = arrowStartY + forceArrowLength * Math.sin(forceVectorAngle);
+
+
+                 ctx.strokeStyle = isDarkMode ? '#48bb78' : '#38a169';
+                 ctx.lineWidth = 3;
+                 ctx.beginPath();
+                 ctx.moveTo(arrowStartX, arrowStartY);
+                 ctx.lineTo(arrowEndX, arrowEndY);
+                 ctx.stroke();
+                  // Draw arrowhead (simplified)
+                 ctx.beginPath();
+                 ctx.moveTo(arrowEndX, arrowEndY);
+                 ctx.lineTo(arrowEndX - 10 * Math.cos(forceVectorAngle + 0.5), arrowEndY - 10 * Math.sin(forceVectorAngle + 0.5));
+                 ctx.moveTo(arrowEndX, arrowEndY);
+                 ctx.lineTo(arrowEndX - 10 * Math.cos(forceVectorAngle - 0.5), arrowEndY - 10 * Math.sin(forceVectorAngle - 0.5));
+                 ctx.stroke();
+
+
+                 // Display relevant values
+                 const angularVelocity = angularAcceleration * currentTime; // Simplified
+                 const currentTorque = currentForce * currentDistance * Math.sin(angleRadians); // Recalculate for display
+
+
+                 ctx.fillStyle = isDarkMode ? '#a0aec0' : '#4a5568';
+                  ctx.font = '16px Inter';
+                  ctx.textAlign = 'left';
+                  ctx.fillText(`Force: ${currentForce} N`, 20, 30);
+                  ctx.fillText(`Distance from Pivot: ${currentDistance} m`, 20, 50);
+                   ctx.fillText(`Angle (Force to Arm): ${currentAngle}°`, 20, 70);
+                    ctx.fillText(`Moment of Inertia: ${currentInertia} kg m²`, 20, 90);
+                    ctx.fillText(`Torque: ${currentTorque.toFixed(2)} Nm`, 20, 120);
+                    ctx.fillText(`Angular Acceleration: ${angularAcceleration.toFixed(2)} rad/s²`, 20, 140);
+                     ctx.fillText(`Current Angular Velocity: ${angularVelocity.toFixed(2)} rad/s`, 20, 160);
+                      ctx.fillText(`Current Angle: ${(currentAngleRad * 180 / Math.PI).toFixed(2)}°`, 20, 180);
+
+
+                  // Add "Ready/Simulating/Complete" text
+                 ctx.font = '18px Inter';
+                 ctx.textAlign = 'center';
+                 if (!isLaunched && animationTimeRef.current === 0) {
+                     ctx.fillText('Ready to Simulate', canvas.width / 2, 30);
+                 } else if (isLaunched) {
+                     ctx.fillText(`Simulating Time: ${animationTimeRef.current.toFixed(1)}s`, canvas.width / 2, 30);
+                 } else {
+                     ctx.fillText('Simulation Complete', canvas.width / 2, 30);
+                 }
+             };
+
+             // Animation loop
+             const animate = () => {
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+                  const ctx = canvas.getContext('2d');
+
+                 if (animationTimeRef.current <= maxAnimationTime) {
+                     drawSimulation(ctx, canvas, force, distance, angle, inertia, animationTimeRef.current, true);
+                     animationTimeRef.current += 0.1;
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 } else {
+                     setIsLaunched(false);
+                     animationTimeRef.current = maxAnimationTime;
+                      drawSimulation(ctx, canvas, force, distance, angle, inertia, animationTimeRef.current, false);
+                 }
+             };
+
+             // Effect to handle initial draw and resize
+             useEffect(() => {
+                 const canvas = canvasRef.current;
+                 if (!canvas) return;
+                 const ctx = canvas.getContext('2d');
+
+                 const resizeCanvas = () => {
+                     setIsLaunched(false);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                         animationFrameId.current = null;
+                     }
+                     drawSimulation(ctx, canvas, force, distance, angle, inertia, animationTimeRef.current, false);
+                 };
+
+                 resizeCanvas();
+                 window.addEventListener('resize', resizeCanvas);
+
+                 return () => {
+                     window.removeEventListener('resize', resizeCanvas);
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                 };
+             }, [canvasRef, force, distance, angle, inertia, isDarkMode]); // Redraw on param change or resize
+
+             // Handler for the Launch button
+             const handleLaunch = () => {
+                 if (!isLaunched) {
+                     setIsLaunched(true);
+                     animationTimeRef.current = 0;
+                     if (animationFrameId.current) {
+                         cancelAnimationFrame(animationFrameId.current);
+                     }
+                     animationFrameId.current = requestAnimationFrame(animate);
+                 }
+             };
+
+
+            return (
+                 <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 text-gray-200' : 'bg-gray-200 text-gray-800'}`}>
+                    <h4 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-700'}`}>Torque and Rotational Motion</h4>
+                    <p className="mb-4 text-gray-400">Understand how torque causes rotational acceleration.</p>
+
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {/* Force Control */}
+                        <div>
+                            <label htmlFor="torqueForce" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Force: <span className="font-semibold">{force}</span> N
+                            </label>
+                            <input
+                                type="range"
+                                id="torqueForce"
+                                min="0"
+                                max="50"
+                                step="1"
+                                value={force}
+                                onChange={(e) => {
+                                     setForce(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Distance Control */}
+                        <div>
+                            <label htmlFor="distance" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Distance from Pivot: <span className="font-semibold">{distance}</span> m
+                            </label>
+                            <input
+                                type="range"
+                                id="distance"
+                                min="0"
+                                max="10"
+                                step="0.5"
+                                value={distance}
+                                onChange={(e) => {
+                                     setDistance(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Angle Control */}
+                        <div>
+                            <label htmlFor="angle" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Angle (Force to Arm): <span className="font-semibold">{angle}</span>°
+                            </label>
+                            <input
+                                type="range"
+                                id="angle"
+                                min="0"
+                                max="180"
+                                step="1"
+                                value={angle}
+                                onChange={(e) => {
+                                     setAngle(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                         {/* Moment of Inertia Control */}
+                        <div className="md:col-span-3"> {/* Span across columns */}
+                            <label htmlFor="inertia" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Moment of Inertia: <span className="font-semibold">{inertia}</span> kg m²
+                            </label>
+                            <input
+                                type="range"
+                                id="inertia"
+                                min="1"
+                                max="50"
+                                step="1"
+                                value={inertia}
+                                onChange={(e) => {
+                                     setInertia(Number(e.target.value));
+                                     setIsLaunched(false); animationTimeRef.current = 0; if (animationFrameId.current) { cancelAnimationFrame(animationFrameId.current); animationFrameId.current = null; }
+                                }}
+                                 className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Launch Button */}
+                    <button
+                        onClick={handleLaunch}
+                        disabled={isLaunched}
+                        className={`w-full py-2 px-4 rounded-md font-semibold transition-colors ${isLaunched ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                    >
+                        {isLaunched ? 'Simulating...' : 'Run Simulation'}
+                    </button>
+
+                    <div className="w-full h-auto flex items-center justify-center border rounded-md border-gray-700 mt-6">
+                         <canvas ref={canvasRef} className="simulation-canvas"></canvas>
+                    </div>
+                 </div>
+            );
+        };
+
+
+        // Main App component for the AP Physics 1 Simulations Website
+        const App = () => {
+            // Dark mode is default for the theme
+            const isDarkMode = true;
+
+            // State to track the currently selected topic
+            const [selectedTopic, setSelectedTopic] = useState('kinematics'); // Default to Kinematics
+
+            // List of AP Physics 1 Topics
+            const physicsTopics = [
+                { id: 'kinematics', name: 'Kinematics' },
+                { id: 'dynamics', name: 'Dynamics (Newton\'s Laws)' },
+                { id: 'circular_motion', name: 'Circular Motion & Gravitation' },
+                { id: 'energy', name: 'Energy' },
+                { id: 'momentum', name: 'Momentum' },
+                { id: 'shm', name: 'Simple Harmonic Motion' },
+                { id: 'torque', name: 'Torque & Rotational Motion' },
+                // Add other AP Physics 1 topics as needed (e.g., basic circuits, charge)
+            ];
+
+            // Function to render the appropriate simulation component based on the selected topic
+            const renderSimulation = () => {
+                switch (selectedTopic) {
+                    case 'kinematics':
+                        return <KinematicsSim isDarkMode={isDarkMode} />;
+                    case 'dynamics':
+                        return <DynamicsSim isDarkMode={isDarkMode} />;
+                    case 'circular_motion':
+                        return <CircularMotionSim isDarkMode={isDarkMode} />;
+                     case 'energy':
+                        return <EnergySim isDarkMode={isDarkMode} />;
+                     case 'momentum':
+                        return <MomentumSim isDarkMode={isDarkMode} />;
+                     case 'shm':
+                        return <SHMSim isDarkMode={isDarkMode} />;
+                     case 'torque':
+                        return <TorqueSim isDarkMode={isDarkMode} />;
+                    default:
+                        return <KinematicsSim isDarkMode={isDarkMode} />; // Default
+                }
+            };
+
+
+            return (
+                <div className={`min-h-screen p-8 bg-gray-900 text-gray-100 font-sans transition-colors duration-300`}>
+                    <div className="container mx-auto">
+                        {/* Title and Creator Info */}
+                        <h1 className="text-4xl font-bold text-center text-indigo-400 mb-4">
+                            AP Physics 1 Simulations
+                        </h1>
+                        <p className="text-center text-lg mb-8 text-gray-400">
+                            Created by <span className="font-semibold text-indigo-300">Tanaya Dave</span>
+                        </p>
+
+                        {/* Main Content Area */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                            {/* Topics Sidebar */}
+                            <aside className={`md:col-span-1 p-6 rounded-lg shadow-lg bg-gray-800 shadow-gray-700 h-[calc(100vh-250px)] overflow-y-auto`}>
+                                <h2 className={`text-xl font-semibold mb-4 text-indigo-400`}>Topics</h2>
+                                <nav>
+                                    <ul>
+                                        {physicsTopics.map(topic => (
+                                            <li key={topic.id} className="mb-2">
+                                                <button
+                                                    onClick={() => setSelectedTopic(topic.id)}
+                                                    className={`w-full text-left p-3 rounded-md transition-colors ${selectedTopic === topic.id ? 'bg-indigo-600 text-white font-semibold' : 'hover:bg-gray-700 text-gray-300'}`}
+                                                >
+                                                    {topic.name}
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </nav>
+                            </aside>
+
+                            {/* Simulation Area */}
+                            <section className={`md:col-span-3 p-6 rounded-lg shadow-lg bg-gray-800 shadow-gray-700 h-[calc(100vh-250px)] overflow-y-auto`}>
+                                {/* Render the selected simulation component */}
+                                {renderSimulation()}
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the App component into the root div
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
